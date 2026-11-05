@@ -5,15 +5,22 @@ LLVM_CONFIG := $(firstword $(wildcard /opt/homebrew/opt/llvm@17/bin/llvm-config 
 endif
 LLVM_BIN := $(shell "$(LLVM_CONFIG)" --bindir 2>/dev/null)
 CXX := $(LLVM_BIN)/clang++
+# Pe macOS folosim compilatorul Apple, compatibil cu SDK-ul instalat.
+# -Wl,-w ascunde avertismentele linkerului (inclusiv cel din libunwind LLVM 17).
+# Erorile linkerului si avertismentele compilatorului raman vizibile.
+ifeq ($(shell uname -s),Darwin)
+CXX := /usr/bin/clang++
+PLATFORM_LDFLAGS := -Wl,-w
+endif
 LLVM_FLAGS = $(shell "$(LLVM_CONFIG)" --cxxflags --ldflags --system-libs --libs core)
 
 .PHONY: all build_and_run run clean
 all: main
 build_and_run: main
 
-main: main.cpp lexer.cpp
+main: main.cpp lexer.cpp makefile
 	@test -n "$(LLVM_CONFIG)" || (echo "LLVM lipseste. Instaleaza LLVM 17 sau seteaza LLVM_CONFIG=/cale/llvm-config"; exit 1)
-	"$(CXX)" -g -O0 main.cpp lexer.cpp $(LLVM_FLAGS) -std=c++17 -o main
+	"$(CXX)" -g -O0 main.cpp lexer.cpp $(LLVM_FLAGS) -std=c++17 $(PLATFORM_LDFLAGS) -o main
 
 lexer.cpp: lexer.l
 	flex -o lexer.cpp lexer.l
